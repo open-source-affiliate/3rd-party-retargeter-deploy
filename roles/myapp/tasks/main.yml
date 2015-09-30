@@ -81,24 +81,6 @@
   copy: src=logrotate
         dest=/etc/logrotate.d/myapp
 
-- name: Install semanage tool
-  yum: pkg=policycoreutils-python
-       state=installed
-
-- name: Check SELinux type of logs
-  shell: ls -dZ /var/www/myapp/shared/log | grep var_log_t
-  changed_when: false
-  failed_when: false
-  register: correct_log_type
-
-- name: Adjust SELinux type of logs
-  command: semanage fcontext -a -t var_log_t "/var/www/myapp/shared/log(/.*)?"
-  when: correct_log_type.rc != 0
-
-- name: Relabel logs
-  command: restorecon -R /var/www/myapp/shared/log
-  when: correct_log_type.rc != 0
-
 - name: Create database
   mysql_db: name=myapp
             state=present
@@ -131,33 +113,6 @@
 - name: Copy sudoers configuration
   copy: src=sudoers
         dest=/etc/sudoers.d/myapp
-
-- name: Check for SELinux policy package
-  shell: semodule -l | grep myapp
-  failed_when: false
-  changed_when: false
-  register: pp_installed
-
-- name: Copy SELinux policy package file
-  copy: src=myapp.pp
-        dest=/tmp/myapp.pp
-  when: pp_installed|failed
-
-- name: Install SELinux policy package
-  command: semodule -i /tmp/myapp.pp
-  when: pp_installed|failed
-
-- name: Enable SELinux policy package
-  command: semodule -e myapp
-  register: pp_enabled
-  failed_when: false
-  changed_when: pp_enabled.rc == 0
-  when: pp_installed|success and pp_installed.stdout|search("Disabled")
-
-- name: Delete SELinux policy package file
-  file: name=/tmp/myapp.pp
-        state=absent
-  when: pp_installed|failed
 
 - name: Copy deploy script
   copy: src=deploy-myapp

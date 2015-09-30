@@ -3,7 +3,7 @@
 - hosts: rails
   remote_user: root
   roles:
-    - { role: selinux, tags: selinux }
+    - { role: disable_selinux, tags: disable_selinux }
     - { role: cron, tags: cron }
     - { role: timezone, tags: timezone }
     - { role: ntp, tags: ntp }

@@ -49,9 +49,6 @@
       args:
         chdir: /var/www/myapp/application
 
-    - name: Restore SELinux contexts
-      command: sudo restorecon -R /var/www/myapp
-
     - name: Check for migrations directory
       stat: path=/var/www/myapp/application/db/migrate
       changed_when: false

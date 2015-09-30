@@ -52,13 +52,6 @@ bundle exec rake assets:precompile &> /dev/null
 bundle exec rake assets:clean &> /dev/null
 
 # ================
-# SELinux contexts
-# ================
-
-echo "Restore SELinux contexts ..."
-sudo restorecon -R ${BASEDIR}
-
-# ================
 # Migrate database
 # ================
 
