@@ -1,0 +1,28 @@
+---
+
+- name: Install packages
+  yum: pkg={{ item }}
+       state=installed
+  with_items:
+    - libselinux-python
+    - selinux-policy
+    - selinux-policy-targeted
+
+- name: Copy SELinux configuration file
+  copy: src=selinux
+        dest=/etc/selinux/config
+
+- name: Check symlinked configuration file
+  stat: path=/etc/sysconfig/selinux
+  register: symlink
+
+- name: Remove symlinked configuraton file
+  file: path=/etc/sysconfig/selinux
+        state=absent
+  when: symlink.stat.exists and symlink.stat.isreg
+
+- name: Symlink configuration file
+  file: src=/etc/selinux/config
+        dest=/etc/sysconfig/selinux
+        state=link
+  when: (symlink.stat.exists == false) or symlink.stat.isreg

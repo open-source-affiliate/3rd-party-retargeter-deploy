@@ -1,0 +1,4 @@
+SECRET_KEY_BASE=blahblahreallylongstring # Must be 64 hexadecimal characters (0-9 a-f). Can use https://www.grc.com/passwords.htm to grab one
+DEVISE_FROM_EMAIL=admin@example.com # Must be a real email address validated in Mailjet
+MAILJET_USERNAME=blahblah # Get yours at https://app.mailjet.com/account/setup
+MAILJET_PASSWORD=abcabc # https://app.mailjet.com/account/setup

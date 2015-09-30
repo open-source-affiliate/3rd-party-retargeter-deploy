@@ -1,0 +1,15 @@
+---
+
+- name: Check timezone
+  stat: path=/etc/localtime
+  register: timezone
+
+- name: Delete timezone configuration
+  file: path=/etc/localtime
+        state=absent
+  when: timezone.stat.isreg or (timezone.stat.lnk_source != "/usr/share/zoneinfo/{{ user_timezone }}")
+
+- name: Set timezone
+  file: src=/usr/share/zoneinfo/{{ user_timezone }}
+        dest=/etc/localtime
+        state=link

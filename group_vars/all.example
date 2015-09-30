@@ -1,0 +1,6 @@
+---
+
+crypted_root_password: $6$blahblahblahreallylongstring
+mysql_root_password: somelongpassword20charsisgood
+myapp_database_password: someotherlongpassword20charsisgood
+user_timezone: America/New_York # See timezones.txt to find your Timezone value

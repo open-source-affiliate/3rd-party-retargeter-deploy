@@ -1,0 +1,37 @@
+---
+
+- name: Add application user
+  user: name=app
+        comment="Application user"
+
+- name: Create .ssh directory
+  file: path=/home/app/.ssh
+        state=directory
+        owner=app
+        mode=0700
+
+- name: Copy private and public keys
+  copy: src=id_rsa
+        dest=/home/app/.ssh/{{ item }}
+        owner=app
+        mode=0600
+  with_items:
+    - id_rsa
+    - id_rsa.pub
+
+- name: Copy authorized_keys
+  copy: src=authorized_keys
+        dest=/home/app/.ssh/authorized_keys
+        owner=app
+        mode=0600
+
+- name: Add web group
+  group: name=web
+         state=present
+
+- name: Add app user to web group
+  user: name=app
+        groups=web
+        append=yes
+
+- include: ruby.yml

@@ -1,0 +1,4 @@
+---
+
+myapp_domain: myapp.com # Change to the domain you will use to add/edit your redirects
+redirect_domains: rdr1.staging rdr2.staging # Add any domains that users will see for your redirect links

@@ -1,0 +1,118 @@
+#!/bin/sh
+
+# unicorn-myapp
+#
+# chkconfig: - 83 14
+# processname: unicorn-myapp
+# pidfile: /var/www/myapp/shared/pids/unicorn.pid
+# description: Rails application server for myapp
+
+### BEGIN INIT INFO
+# Provides: unicorn-myapp
+# Required-Start: $local_fs $remote_fs $network
+# Required-Stop: $local_fs $remote_fs $network
+# Default-Start: 3 5
+# Default-Stop: 0 1 2 4 6
+# Description: Manage myapp unicorn
+### END INIT INFO
+
+# Source function library
+. /etc/rc.d/init.d/functions
+
+PATH=/home/app/.rbenv/shims:$PATH
+
+APP_ROOT=/var/www/myapp/application
+PROG=unicorn-myapp
+PID=/var/www/myapp/shared/pids/unicorn.pid
+OLDPID="$PID.oldbin"
+START_COMMAND="cd $APP_ROOT && bundle exec unicorn -D -c /var/www/myapp/shared/config/unicorn.rb -E production"
+TIMEOUT=10
+
+cd $APP_ROOT || exit 1
+
+restart() {
+  echo -n "Restarting $PROG: "
+  rh_status > /dev/null 2>&1
+  if [[ $? -ne 0 ]]; then
+    echo_failure
+  else
+    killproc -p ${PID} ${PROG} -HUP
+  fi
+}
+
+rh_status() {
+  status -p ${PID} ${PROG}
+}
+
+start() {
+  echo -n "Starting $PROG: "
+
+  rh_status > /dev/null 2>&1
+  if [[ $? -eq 0 ]]; then
+    echo_failure
+  else
+    eval $START_COMMAND
+    if [[ $? -eq 0 ]]; then
+      echo_success
+    else
+      echo_failure
+    fi
+  fi
+}
+
+stop() {
+  echo -n "Stopping $PROG: "
+  killproc -p ${PID} ${PROG} -QUIT
+  [[ $? -eq 0 ]] && rm -f ${PID}
+}
+
+upgrade() {
+  echo -n "Respawning master: "
+  rh_status > /dev/null 2>&1
+  if [[ $? -eq 0 ]]; then
+    killproc -p ${PID} ${PROG} -USR2
+    echo
+    echo -n "Waiting for old master to quit: "
+    sleep 2
+    n=$TIMEOUT
+
+    while [[ -s ${OLDPID} ]] && [[ $n -ge 0 ]]; do
+      printf '.' && sleep 1 && n=$(( $n - 1 ))
+    done
+
+    if [[ $n -lt 0 ]] && [[ -s ${OLDPID} ]]; then
+      echo_failure
+      echo
+      exit 1
+    fi
+
+    echo_success
+  else
+    echo_failure
+  fi
+}
+
+case $1 in
+  restart|reload)
+    restart
+    ;;
+  start)
+    start
+    ;;
+  status)
+    rh_status
+    exit $?
+    ;;
+  stop)
+    stop
+    ;;
+  upgrade)
+    upgrade
+    ;;
+  *)
+    echo >&2 "Usage: $PROG <start|stop|restart|upgrade|status>"
+    exit 2
+    ;;
+esac
+
+echo

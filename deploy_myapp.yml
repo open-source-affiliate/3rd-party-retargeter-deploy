@@ -1,0 +1,113 @@
+---
+
+- hosts: rails
+  remote_user: app
+  tasks:
+
+    - name: Clone codebase
+      git: repo=https://github.com/open-source-affiliate/3rd-party-retargeter
+           dest=/var/www/myapp/application
+           version=master
+           update=yes
+           force=yes
+
+    - name: Remove files and directories to be symlinked
+      file: path=/var/www/myapp/application/{{ item }}
+            state=absent
+      with_items:
+        - log
+        - tmp
+        - config/database.yml
+        - config/unicorn.rb
+
+    - name: Symlink shared directories
+      file: src=/var/www/myapp/shared/{{ item }}
+            dest=/var/www/myapp/application/{{ item }}
+            state=link
+      with_items:
+        - log
+        - tmp
+        - config/database.yml
+        - config/unicorn.rb
+
+    - name: Check bundle
+      shell: bundle check
+      failed_when: false
+      changed_when: false
+      register: check_bundle
+      args:
+        chdir: /var/www/myapp/application
+
+    - name: Update bundle
+      shell: bundle install --without development test && rbenv rehash
+      when: check_bundle.rc != 0
+      args:
+        chdir: /var/www/myapp/application
+
+    - name: Precompile assets
+      shell: bundle exec rake assets:precompile assets:clean
+      args:
+        chdir: /var/www/myapp/application
+
+    - name: Restore SELinux contexts
+      command: sudo restorecon -R /var/www/myapp
+
+    - name: Check for migrations directory
+      stat: path=/var/www/myapp/application/db/migrate
+      changed_when: false
+      failed_when: false
+      register: migrate_directory
+
+    - name: Check for migrations table
+      shell: bundle exec rake db:migrate:status | grep -E "Status"
+      changed_when: false
+      failed_when: false
+      when: migrate_directory.stat.exists
+      register: migration_table_exists
+      args:
+        chdir: /var/www/myapp/application
+
+    - name: Check for pending migrations
+      shell: bundle exec rake db:migrate:status | grep -E "^\s+down"
+      changed_when: false
+      failed_when: false
+      when: migrate_directory.stat.exists and (migration_table_exists.rc == 0)
+      register: migrations_pending
+      args:
+        chdir: /var/www/myapp/application
+
+    - name: Check application server status
+      shell: sudo /etc/init.d/unicorn-myapp status
+      failed_when: false
+      changed_when: false
+      register: application_server_status
+
+    - name: Create database
+      shell: bundle exec rake db:create
+      when: migrate_directory.stat.exists
+      args:
+        chdir: /var/www/myapp/application
+
+    - name: Stop application server
+      shell: sudo /etc/init.d/unicorn-myapp stop
+      when: (application_server_status.rc != 3) and migrate_directory.stat.exists and ((migration_table_exists.rc != 0) or (migrations_pending.rc == 0))
+
+    - name: Migrate database
+      shell: bundle exec rake db:migrate
+      when: migrate_directory.stat.exists and ((migration_table_exists.rc != 0) or (migrations_pending.rc == 0))
+      args:
+        chdir: /var/www/myapp/application
+
+    - name: Check application server status
+      shell: sudo /etc/init.d/unicorn-myapp status
+      failed_when: false
+      changed_when: false
+      register: application_server_status
+
+    - name: Start application server
+      shell: sudo /etc/init.d/unicorn-myapp start
+      when: application_server_status.rc == 3
+
+    - name: Upgrade application server
+      shell: sudo /etc/init.d/unicorn-myapp upgrade
+      when: application_server_status.rc != 3

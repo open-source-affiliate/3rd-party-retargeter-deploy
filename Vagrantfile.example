@@ -1,0 +1,10 @@
+# TODO: Adjust the IP address below for your network
+# If your ip address is 192.168.1.XXX then leave it as is
+# If your ip address is 192.168.0.XXX then change it to 192.168.0.100
+# Optional: Add a bridge parameter like below to avoid manually specifying it
+#   config.vm.network "public_network", ip: "192.168.1.100", bridge: "en0: Wi-Fi (AirPort)"
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "open-source-affiliate/centos-6"
+  config.vm.network "public_network", ip: "192.168.1.100"
+end

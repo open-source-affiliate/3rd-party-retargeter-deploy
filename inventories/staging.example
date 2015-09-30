@@ -1,0 +1,6 @@
+[rails]
+192.168.1.100
+# TODO: Use the same IP address here as the one in your Vagrantfile
+
+[staging:children]
+rails

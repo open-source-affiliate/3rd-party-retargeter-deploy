@@ -1,0 +1,6 @@
+[rails]
+1.2.3.4
+# TODO: Add your cloud server's IP address here
+
+[production:children]
+rails

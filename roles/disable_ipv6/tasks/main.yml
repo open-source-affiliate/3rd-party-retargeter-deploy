@@ -1,0 +1,4 @@
+- name: Copy sysctl.conf
+  copy: src=sysctl.conf
+        dest=/etc/sysctl.conf
+  notify: Reboot

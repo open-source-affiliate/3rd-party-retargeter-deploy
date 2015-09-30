@@ -1,0 +1,5 @@
+---
+
+- name: Install vim
+  yum: pkg=vim
+       state=installed

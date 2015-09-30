@@ -1,0 +1,20 @@
+# Vagrant
+.vagrant
+
+# Ignore vim temporary .swp files
+*.swp
+
+# Mac .DS_Store
+.DS_Store
+
+# Per-user configuration files
+group_vars/all
+group_vars/production
+group_vars/staging
+inventories/staging
+inventories/production
+roles/application_user/files/authorized_keys
+roles/application_user/files/id_rsa
+roles/application_user/files/id_rsa.pub
+roles/myapp/files/rbenv-vars
+Vagrantfile

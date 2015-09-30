@@ -1,0 +1,9 @@
+---
+
+- name: Disable unneeded services
+  service: name={{ item }}
+           enabled=no
+           state=stopped
+  with_items:
+    - postfix
+    - netfs

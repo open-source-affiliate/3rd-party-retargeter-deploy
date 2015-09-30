@@ -1,0 +1,16 @@
+---
+
+- hosts: rails
+  remote_user: app
+  tasks:
+
+    - name: Copy database dump
+      copy: src="{{ lookup('env', 'HOME') }}/backup/database/myapp.sql"
+            dest=/tmp/
+
+    - name: Import database dump
+      shell: mysql --user=myapp --password={{ myapp_database_password }} myapp < /tmp/myapp.sql
+
+    - name: Delete database dump
+      file: path=/tmp/myapp.sql
+            state=absent

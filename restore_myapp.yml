@@ -1,0 +1,24 @@
+---
+
+- hosts: rails
+  remote_user: app
+  tasks:
+
+    - name: Create local backup directory
+      local_action: file path="{{ lookup('env', 'HOME') }}/backup/{{ item }}"
+                         state=directory
+      with_items:
+        - database
+        - upload
+
+    - name: Create database dump
+      shell: mysqldump --user=myapp --password={{ myapp_database_password }} myapp > /tmp/myapp.sql
+
+    - name: Fetch database dump
+      fetch: src=/tmp/myapp.sql
+             dest=~/backup/database/
+             flat=yes
+
+    - name: Delete database dump
+      file: path=/tmp/myapp.sql
+            state=absent

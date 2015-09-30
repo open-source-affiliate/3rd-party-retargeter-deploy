@@ -1,0 +1,5 @@
+---
+
+# To develop locally with a staging environment edit your /etc/hosts to include these fake domains
+myapp_domain: redirect.staging
+redirect_domains: rdr1.staging rdr2.staging

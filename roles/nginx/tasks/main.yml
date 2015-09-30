@@ -1,0 +1,29 @@
+--- 
+
+- name: Create nginx repository 
+  copy: src=nginx.repo
+        dest=/etc/yum.repos.d/nginx.repo
+
+- name: Install nginx 
+  yum: pkg=nginx
+       state=present
+
+- name: Disable default website
+  command: mv /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf.disabled
+  notify: Restart nginx
+  args:
+    creates: /etc/nginx/conf.d/default.conf.disabled
+
+- name: Start and enable nginx 
+  service: name=nginx
+           state=started
+           enabled=yes
+
+- name: Add web group
+  group: name=web
+         state=present
+
+- name: Add app user to web group
+  user: name=nginx
+        groups=web
+        append=yes

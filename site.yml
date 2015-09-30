@@ -1,0 +1,21 @@
+---
+
+- hosts: rails
+  remote_user: root
+  roles:
+    - { role: selinux, tags: selinux }
+    - { role: cron, tags: cron }
+    - { role: timezone, tags: timezone }
+    - { role: ntp, tags: ntp }
+    - { role: git, tags: git }
+    - { role: vim, tags: vim }
+    - { role: root_password, tags: root_password }
+    - { role: ssh, tags: ssh }
+    - { role: iptables, tags: iptables }
+    - { role: unneeded_services, tags: unneeded_services }
+    - { role: disable_ipv6, tags: disable_ipv6 }
+    - { role: nginx, tags: nginx }
+    - { role: mysql, tags: mysql }
+    - { role: nodejs, tags: nodejs }
+    - { role: application_user, tags: application_user }
+    - { role: myapp, tags: myapp }

@@ -1,0 +1,11 @@
+---
+
+- name: Enable and start iptables
+  service: name=iptables
+           enabled=yes
+           state=started
+
+- name: Add firewall rules
+  copy: src=iptables
+        dest=/etc/sysconfig/iptables
+  notify: Restart iptables

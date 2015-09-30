@@ -1,0 +1,112 @@
+#!/bin/sh
+
+BASEDIR="/var/www/myapp"
+REPOSITORY="https://github.com/open-source-affiliate/3rd-party-retargeter"
+BRANCH="master"
+
+# ===============
+# Update codebase
+# ===============
+
+echo "Updating codebase ..."
+cd ${BASEDIR}/application
+git reset --hard
+git checkout ${BRANCH}
+git pull
+
+# ========
+# Symlinks
+# ========
+
+echo "Symlinking shared directories ..."
+rm -rf ${BASEDIR}/application/log \
+       ${BASEDIR}/application/tmp \
+       ${BASEDIR}/application/config/database.yml \
+       ${BASEDIR}/application/config/unicorn.rb
+ln -s ${BASEDIR}/shared/log ${BASEDIR}/application/log
+ln -s ${BASEDIR}/shared/tmp ${BASEDIR}/application/tmp
+ln -s ${BASEDIR}/shared/config/unicorn.rb ${BASEDIR}/application/config/unicorn.rb
+ln -s ${BASEDIR}/shared/config/database.yml ${BASEDIR}/application/config/database.yml
+
+# =============
+# Update bundle
+# =============
+
+echo "Update bundle ..."
+bundle check &> /dev/null
+if [[ $? -eq 1 ]]; then
+  OUTPUT=$(bundle install --without development test 2>&1)
+  if [[ $? -ne 0 ]]; then
+    echo "${OUTPUT}"
+    exit 1
+  fi
+  rbenv rehash
+fi
+
+# =================
+# Precompile assets
+# =================
+
+echo "Precompile assets ..."
+bundle exec rake assets:precompile &> /dev/null
+bundle exec rake assets:clean &> /dev/null
+
+# ================
+# SELinux contexts
+# ================
+
+echo "Restore SELinux contexts ..."
+sudo restorecon -R ${BASEDIR}
+
+# ================
+# Migrate database
+# ================
+
+function migrate_database {
+  sudo /etc/init.d/unicorn-{{ name }} status &> /dev/null
+
+  if [[ $? -ne 3 ]]; then
+    echo "Stop application server ..."
+    sudo /etc/init.d/unicorn-{{ name }} stop
+  fi
+
+  echo "Backup database ..."
+  mysqldump --user={{ database_user }} --password={{ database_password }} {{ database }} > ${BASEDIR}/shared/backup/${PREVIOUS_COMMIT}.sql
+
+  echo "Migrate database ..."
+  bundle exec rake db:migrate &> /dev/null
+}
+
+ls ${BASEDIR}/application/db/migrate &> /dev/null
+
+if [[ $? -eq 0 ]]; then
+  # Creating database does no harm in case it already exists
+  bundle exec rake db:create &> /dev/null
+
+  bundle exec rake db:migrate:status | grep -E "Status" &> /dev/null
+
+  if [[ $? -ne 0 ]]; then
+    # Database has not been migrated yet (schema_migrations table does not
+    # exist).
+
+    migrate_database
+  else
+    bundle exec rake db:migrate:status | grep -E "^\s+down" &> /dev/null
+
+    [[ $? -eq 0 ]] && migrate_database
+  fi
+fi
+
+# ===================================
+# Start or upgrade application server
+# ===================================
+
+sudo /etc/init.d/unicorn-myapp status &> /dev/null
+
+if [[ $? -eq 3 ]]; then
+  echo "Start application server ..."
+  sudo /etc/init.d/unicorn-myapp start
+else
+  echo "Upgrade application server ..."
+  sudo /etc/init.d/unicorn-myapp upgrade
+fi

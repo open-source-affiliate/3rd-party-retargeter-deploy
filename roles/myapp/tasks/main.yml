@@ -1,0 +1,167 @@
+---
+
+- name: Create base directory
+  file: path=/var/www
+        state=directory
+        group=web
+        mode=0770
+
+- name: Create myapp directory
+  file: path=/var/www/myapp
+        state=directory
+        owner=app
+        group=web
+        mode=g+s
+
+- name: Create myapp directory structure
+  file: path=/var/www/myapp//{{ item }}
+        state=directory
+        owner=app
+        group=web
+  with_items:
+    - application
+    - shared
+    - shared/config
+    - shared/log
+    - shared/log/archive
+    - shared/maintenance
+    - shared/pids
+    - shared/sockets
+    - shared/tmp
+    - shared/tmp/cache
+
+- name: Clone codebase
+  git: repo=https://github.com/open-source-affiliate/3rd-party-retargeter
+       dest=/var/www/myapp/application
+       version=master
+       update=no
+       accept_hostkey=yes
+  become: true
+  become_user: app
+
+- name: Clone maintenance page
+  git: repo=https://github.com/open-source-affiliate/maintenance
+       dest=/var/www/myapp/shared/maintenance
+       version=master
+       update=yes
+       accept_hostkey=yes
+  become: true
+  become_user: app
+
+- name: Set Ruby version
+  copy: content=2.2.1
+        dest=/var/www/myapp/.ruby-version
+        owner=app
+        group=web
+
+- name: Set default RAILS_ENV
+  copy: content="RAILS_ENV=production"
+        dest=/home/app/.rbenv/vars
+        owner=app
+        group=web
+
+- name: Set environment variables
+  copy: src=rbenv-vars
+       dest=/var/www/myapp/.rbenv-vars
+       owner=app
+       group=web
+
+- name: Copy Unicorn configuration
+  copy: src=unicorn.rb
+        dest=/var/www/myapp/shared/config/unicorn.rb
+        owner=app
+        group=web
+
+- name: Copy vhost
+  template: src=vhost.conf.j2
+            dest=/etc/nginx/conf.d/myapp.conf
+  notify: Restart nginx
+
+- name: Configure logrotate
+  copy: src=logrotate
+        dest=/etc/logrotate.d/myapp
+
+- name: Install semanage tool
+  yum: pkg=policycoreutils-python
+       state=installed
+
+- name: Check SELinux type of logs
+  shell: ls -dZ /var/www/myapp/shared/log | grep var_log_t
+  changed_when: false
+  failed_when: false
+  register: correct_log_type
+
+- name: Adjust SELinux type of logs
+  command: semanage fcontext -a -t var_log_t "/var/www/myapp/shared/log(/.*)?"
+  when: correct_log_type.rc != 0
+
+- name: Relabel logs
+  command: restorecon -R /var/www/myapp/shared/log
+  when: correct_log_type.rc != 0
+
+- name: Create database
+  mysql_db: name=myapp
+            state=present
+
+- name: Create database user
+  mysql_user: name=myapp
+              password={{ myapp_database_password }}
+              priv=myapp.*:ALL
+              host={{ item }}
+              state=present
+  with_items:
+    - 127.0.0.1
+    - localhost
+
+- name: Copy database configuration
+  template: src=database.yml.j2
+            dest=/var/www/myapp/shared/config/database.yml
+            owner=app
+            group=web
+
+- name: Install Unicorn init script
+  copy: src=unicorn-myapp
+        dest=/etc/init.d/unicorn-myapp
+        mode=0755
+
+- name: Enable Unicorn
+  service: name=unicorn-myapp
+           enabled=yes
+
+- name: Copy sudoers configuration
+  copy: src=sudoers
+        dest=/etc/sudoers.d/myapp
+
+- name: Check for SELinux policy package
+  shell: semodule -l | grep myapp
+  failed_when: false
+  changed_when: false
+  register: pp_installed
+
+- name: Copy SELinux policy package file
+  copy: src=myapp.pp
+        dest=/tmp/myapp.pp
+  when: pp_installed|failed
+
+- name: Install SELinux policy package
+  command: semodule -i /tmp/myapp.pp
+  when: pp_installed|failed
+
+- name: Enable SELinux policy package
+  command: semodule -e myapp
+  register: pp_enabled
+  failed_when: false
+  changed_when: pp_enabled.rc == 0
+  when: pp_installed|success and pp_installed.stdout|search("Disabled")
+
+- name: Delete SELinux policy package file
+  file: name=/tmp/myapp.pp
+        state=absent
+  when: pp_installed|failed
+
+- name: Copy deploy script
+  copy: src=deploy-myapp
+        dest=/home/app/deploy-myapp
+        owner=app
+        group=app
+        mode=0755

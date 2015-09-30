@@ -1,0 +1,5 @@
+---
+
+- name: Install cron
+  yum: pkg=cronie
+       state=installed
